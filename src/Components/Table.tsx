@@ -11,10 +11,9 @@ import TableRow from "@mui/material/TableRow";
 import { uniqueId } from "lodash";
 import React from "react";
 // import useCheckPermissions from 'services/auth/auth-logic/useCheckPermissions';
-import { DataTableAction, DataTableColumn, DataTableRow } from "../utils/types";
+import {  DataTableColumn, DataTableRow } from "../utils/types";
 import CustomTablePagination from "./CustomTablePagination";
 import EmptyList from "./EmptyList";
-import TableActionMenu from "./TableActionMenu";
 
 const useStyles = makeStyles((theme: Theme) =>
   createStyles({
@@ -55,7 +54,8 @@ const useStyles = makeStyles((theme: Theme) =>
 type DataTableProps = {
   columns: DataTableColumn[];
   rows: DataTableRow[];
-  actions: DataTableAction[];
+  onSort: (field: string) => void;
+  filterValue: string;
   // eslint-disable-next-line no-unused-vars
   setPage: (page: number) => void;
   // eslint-disable-next-line no-unused-vars
@@ -71,12 +71,15 @@ type DataTableProps = {
   isItemSelected?: (id: string) => boolean;
   uniqueItem?: string;
   rowColor?: string;
+  sortField: string;
+  sortDirection: "asc" | "desc";
+  setSortDirection: Function;
+  setSortField: Function;
 };
 
 const DataTable: React.FC<DataTableProps> = ({
   columns,
   rows,
-  actions,
   setPage,
   page,
   setRowsPerPage,
@@ -89,8 +92,24 @@ const DataTable: React.FC<DataTableProps> = ({
   uniqueItem,
   numSelected,
   rowColor,
+  filterValue,
+  onSort,
+  sortField,
+  sortDirection,
+  setSortDirection,
+  setSortField
 }: DataTableProps) => {
   const classes = useStyles();
+
+  const handleSort = (field: string) => {
+    if (field === sortField) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setSortField(field);
+      setSortDirection("asc");
+    }
+  };
+
 
   const handleChangePage = (event: unknown, newPage: number) => {
     setPage(newPage);
@@ -105,32 +124,46 @@ const DataTable: React.FC<DataTableProps> = ({
 
  // const allowedActions = actions;
 
-  const visibleRows = !pageCount
-    ? rows.slice(
-        (page - 1) * rowsPerPage,
-        (page - 1) * rowsPerPage + rowsPerPage
-      )
-    : rows;
+ const getSortIndicator = (field: string) => {
+  if (field === sortField) {
+    return sortDirection === "asc" ? "↑" : "↓";
+  }
+  return null;
+};
+
+  const visibleRows = React.useMemo(() => {
+    const filteredRows = !filterValue
+      ? rows
+      : rows.filter((row) =>
+          row.typeOfService?.includes(filterValue)
+        );
+
+    if (sortField && filteredRows.length > 0) {
+      filteredRows.sort((a, b) => {
+        if (sortDirection === "asc") {
+          return a[sortField] > b[sortField] ? 1 : -1;
+        } else {
+          return a[sortField] < b[sortField] ? 1 : -1;
+        }
+      });
+    }
+
+    const startIndex = (page - 1) * rowsPerPage;
+    return filteredRows.slice(startIndex, startIndex + rowsPerPage);
+  }, [filterValue, sortField, sortDirection, rows, page, rowsPerPage]);
 
   return (
     <Paper className={classes.root}>
       <>
-        <TableContainer className={classes.container}>
-          <Table
-            //size={allowedActions.length ? "small" : "medium"}
-            stickyHeader
-            aria-label="sticky table"
-            className={classes.overrides}
-          >
+      <TableContainer className={classes.container}>
+          <Table stickyHeader aria-label="sticky table" className={classes.overrides}>
             <TableHead>
               <TableRow>
                 {isSelectable ? (
                   <TableCell padding="checkbox">
                     <Checkbox
                       indeterminate={
-                        !!numSelected &&
-                        numSelected > 0 &&
-                        numSelected < rows.length
+                        !!numSelected && numSelected > 0 && numSelected < rows.length
                       }
                       checked={rows.length > 0 && numSelected === rows.length}
                       onChange={handleSelectAllClick}
@@ -147,30 +180,19 @@ const DataTable: React.FC<DataTableProps> = ({
                     className={classes.cell}
                     align={column.align || "left"}
                     style={{
-                      minWidth: column.minWidth,   
+                      minWidth: column.minWidth,
+                      cursor: column.sort ? "pointer" : "default", // Show pointer cursor on sortable columns
                     }}
+                    onClick={() => column.sort && handleSort(column.id)}
                   >
                     <div style={{ display: column.icon ? "flex" : "" }}>
-                      {column.label}
+                      {column.label} {column.sort && getSortIndicator(column.id)}
                       {column.icon ? column.icon() : <></>}
                     </div>
 
                     {column.filter && column.filter}
                   </TableCell>
                 ))}
-                {/* {allowedActions.length > 0 ? ( */}
-                  <TableCell
-                    classes={{ root: classes.headerCell }}
-                    className={classes.cell}
-                    style={{ minWidth: 100 }}
-                    key="actions"
-                    align="center"
-                  >
-                    Actions
-                  </TableCell>
-                {/* // ) : (
-                //   <></>
-                // )} */}
               </TableRow>
             </TableHead>
             <TableBody>
@@ -178,13 +200,9 @@ const DataTable: React.FC<DataTableProps> = ({
                 const isSelected =
                   !!(isItemSelected && uniqueItem) &&
                   !!isItemSelected(row[uniqueItem]);
-                 let color;
-                 row.typeOfService==="MEDICATION" ? (
-                   color="#99C68E"
-                 ): 
-                 (
-                   color=""
-                 )
+                let color;
+                row.typeOfService === "MEDICATION" ? (color = "#99C68E") : (color = "");
+
                 return (
                   <TableRow
                     hover
@@ -193,24 +211,16 @@ const DataTable: React.FC<DataTableProps> = ({
                     key={uniqueId()}
                     style={{
                       backgroundColor: `${color}`,
-                      color:'white'
+                      color: "white",
                     }}
-                    //className={classes.overrides}
-                    // onClick={(event) =>
-                    //   handleClick &&
-                    //   uniqueItem &&
-                    //   handleClick(event, row[uniqueItem])
-                    // }                  
                   >
                     {isSelectable ? (
-                      <TableCell padding="checkbox" >
+                      <TableCell padding="checkbox">
                         <Checkbox
                           checked={isSelected}
                           inputProps={{ "aria-labelledby": uniqueItem }}
                           onChange={(event: any) =>
-                            handleClick &&
-                            uniqueItem &&
-                            handleClick(event, row[uniqueItem])
+                            handleClick && uniqueItem && handleClick(event, row[uniqueItem])
                           }
                         />
                       </TableCell>
@@ -220,32 +230,11 @@ const DataTable: React.FC<DataTableProps> = ({
                     {columns.map((column) => {
                       const value = row[column.id];
                       return (
-                        <TableCell
-                          className={classes.cell}
-                          key={uniqueId()}
-                          align={column.align || "left"}
-                        
-                        >
-                          {column.format
-                            ? column.format(value, row)
-                            : value || "-"}
+                        <TableCell className={classes.cell} key={uniqueId()} align={column.align || "left"}>
+                          {column.format ? column.format(value, row) : value || "-"}
                         </TableCell>
                       );
                     })}
-                    {/* {allowedActions.length > 0 ? ( */}
-                      <TableCell
-                        key={uniqueId()}
-                        className={classes.cell}
-                        style={{ minWidth: 100 }}
-                        align="center"
-                      >
-                        <TableActionMenu
-                          actions={actions.map((a) => ({ ...a, data: row }))}
-                        />
-                      </TableCell>
-                    {/* ) : (
-                      <></>
-                    )} */}
                   </TableRow>
                 );
               })}

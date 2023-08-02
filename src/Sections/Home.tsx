@@ -7,7 +7,6 @@ import Table from "../Components/Table";
 import TableLink from "../Components/TableLink";
 import React, { useEffect, useState } from "react";
 import {
-  DataTableAction,
   DataTableColumn,
   DataTableRow,
 } from "../utils/types";
@@ -47,14 +46,7 @@ createStyles({
 
 }));
 
-type Props = {
-  roleName?: string;
-  roleId?: string;
-  userTypeCode?: string;
-};
-const UsersList: React.FC<Props> = ({
-  userTypeCode
-}: Props) => {
+const Home = () => {
   const classes = useStyles();
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(5);
@@ -65,6 +57,12 @@ const UsersList: React.FC<Props> = ({
   const [value, setValue] = React.useState<string>('');
   const [isEdit, setIsEdit] = useState<boolean>(false);
   const [openNew, setOpenNew] = useState<boolean>(false);
+  // Inside UsersList component
+  const [filterValue, setFilterValue] = useState<string>("");
+  const [sortField, setSortField] = useState<string>("createdAt");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+
+
      // useFetch(`/${subset}`, `fetchBreeds-${subset}`);
       const {
         data,
@@ -83,14 +81,6 @@ const UsersList: React.FC<Props> = ({
     (value?.length <=0 || value ==null)? 
     optionsData=data?.data || data || [] :
     optionsData=data.filter((data:any) => data.typeOfService?.includes(value));
-
-
-  const handleEditRow = (row: any) => {
-    setUser(row);
-    setEditing(true);
-  };
-
-  const actions: DataTableAction[] = [];
 
   const columns: DataTableColumn[] = [
     {
@@ -123,23 +113,21 @@ const UsersList: React.FC<Props> = ({
       id: "views",
       label: "Views",
       minWidth: 150,
+      sort: true, 
       format: (value: any)=>{
         return <span style={{color: value >0 && value <=25 ? "tomato" 
         : value >=26 && value <=50 ? "orange" 
         : value >=51 && value <=75 ? "yellow"
         : value >=76 && value <=100 ? "green" : ""  }}>{value}</span>;
       },
+      
       },  
   ];
 
 const rows: DataTableRow[] = isSuccess
-? userTypeCode
   ?updatedData
-  : updatedData
 : [];
 
-
-const [searched, setSearched] = useState<string>("");
 
 useEffect(()=>{
   (value?.length <=0 || value ==null)? 
@@ -154,6 +142,14 @@ const handleClickNewBtn = () => {
   history("/jokesform");
 };
 
+const handleSort = (field: string) => {
+  if (field === sortField) {
+    setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+  } else {
+    setSortField(field);
+    setSortDirection("asc");
+  }
+};
   return (
     <PageContent>
       <div className={classes.root}>
@@ -180,13 +176,19 @@ const handleClickNewBtn = () => {
           <Table
             columns={columns}
             rows={rows?.map((r, index) => ({ ...r, number: index + 1 }))}
-            actions={actions}
             setPage={setPage}
             setRowsPerPage={setRowsPerPage}
             page={page}
             rowsPerPage={rowsPerPage}
             pageCount={data?.totalPage}
             rowColor={''}
+            onSort={(field) => handleSort(field)} // Pass the sorting function
+            filterValue={filterValue} 
+            sortDirection={sortDirection}
+            setSortDirection={setSortDirection}
+            sortField={sortField}
+            setSortField={setSortField}
+
           />
         {/* </>)} */}
         </>
@@ -196,10 +198,4 @@ const handleClickNewBtn = () => {
   );
 };
 
-UsersList.defaultProps = {
-  roleName: undefined,
-  roleId: undefined,
-  userTypeCode: undefined,
-};
-
-export default UsersList;
+export default Home;

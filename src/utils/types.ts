@@ -19,16 +19,6 @@ export type PageHeaderLink = {
  permission: string;
 };
 
-export type DataTableAction = {
-  label: string;
-  icon?: () => ReactChild;
-  // eslint-disable-next-line no-unused-vars
-  onClick: (value: string) => void;
-  // eslint-disable-next-line no-unused-vars
-   permission: string | ((value: any) => string);
-  data?: any;
-  disabled?: boolean;
-};
 /**
  * @description Define a structure for a table column
  */
@@ -43,6 +33,7 @@ export type DataTableColumn = {
   backgroundColor?: Color;
   filter?: ReactChild;
   render?: Function;
+  sort?: boolean;
 };
 
 /**
